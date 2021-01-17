@@ -7,6 +7,8 @@ require "logstash/util/socket_peer"
 require "logstash-input-tcp_jars"
 require "logstash/inputs/tcp/decoder_impl"
 require "logstash/inputs/tcp/compat_ssl_options"
+require 'logstash/plugin_mixins/ecs_compatibility_support'
+
 
 require "socket"
 require "openssl"
@@ -62,6 +64,11 @@ require "openssl"
 class LogStash::Inputs::Tcp < LogStash::Inputs::Base
 
   java_import org.logstash.tcp.InputLoop
+
+  require_relative 'tcp/chooser'
+
+  # ecs_compatibility option, provided by Logstash core or the support adapter.
+  include(LogStash::PluginMixins::ECSCompatibilitySupport)
 
   config_name "tcp"
 
@@ -184,8 +191,8 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
                     proxy_port, tbuf, socket)
     codec.decode(tbuf) do |event|
       if @proxy_protocol
-        event.set(PROXY_HOST_FIELD, proxy_address) unless event.get(PROXY_HOST_FIELD)
-        event.set(PROXY_PORT_FIELD, proxy_port) unless event.get(PROXY_PORT_FIELD)
+        event.set(@field_proxy_host, proxy_address) unless event.get(@field_proxy_host)
+        event.set(@field_proxy_port, proxy_port) unless event.get(@field_proxy_port)
       end
       enqueue_decorated(event, client_ip_address, client_address, client_port, socket)
     end
@@ -268,13 +275,17 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
     @output_queue << event
   end
 
+  # setup the field names, with respect to ECS compatibility.
   def setup_fields!
-    @field_host = 'host'.freeze
-    @field_host_ip = "[@metadata][ip_address]".freeze
-    @field_port = "port".freeze
-    @field_proxy_host = "proxy_host".freeze
-    @field_proxy_port = "proxy_port".freeze
-    @field_sslsubject = "sslsubject".freeze
+    ecs_mode = Chooser.new([:disabled, :v1])
+                      .choose(ecs_compatibility, "`ecs_compatibility` mode", LogStash::ConfigurationError)
+
+    @field_host       = ecs_mode[disabled: "host",                    v1: "[@metadata][tcp][source][name]"        ].freeze
+    @field_host_ip    = ecs_mode[disabled: "[@metadata][ip_address]", v1: "[@metadata][tcp][source][ip]"          ].freeze
+    @field_port       = ecs_mode[disabled: "port",                    v1: "[@metadata][tcp][source][port]"        ].freeze
+    @field_proxy_host = ecs_mode[disabled: "proxy_host",              v1: "[@metadata][tcp][proxy][ip]"           ].freeze
+    @field_proxy_port = ecs_mode[disabled: "proxy_port",              v1: "[@metadata][tcp][proxy][port]"         ].freeze
+    @field_sslsubject = ecs_mode[disabled: "sslsubject",              v1: "[@metadata][tcp][tls][client][subject]"].freeze
   end
 
   def server?

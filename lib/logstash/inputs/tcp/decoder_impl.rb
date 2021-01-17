@@ -41,16 +41,16 @@ class DecoderImpl
         @tcp.logger.error("invalid proxy protocol header label", :hdr => pp_hdr)
         raise IOError
       else
-        @proxy_address = pp_info[3]
-        @proxy_port = pp_info[5]
-        @address = pp_info[2]
-        @port = pp_info[4]
+        @proxy_address = pp_info[3] # layer 3 destination address (proxy's receiving address)
+        @proxy_port = pp_info[5] # TCP destination port (proxy's receiving port)
+        @address = @ip_address = pp_info[2] # layer 3 source address (outgoing ip of sender)
+        @port = pp_info[4] # TCP source port (outgoing port on sender [probably random])
       end
     else
       filtered = received
-      @ip_address = channel_addr.get_address.get_host_address
-      @address = extract_host_name(channel_addr)
-      @port = channel_addr.get_port
+      @ip_address = channel_addr.get_address.get_host_address # ip address of sender
+      @address = extract_host_name(channel_addr) # name _or_ address of sender
+      @port = channel_addr.get_port # outgoing port of sender (probably random)
     end
     @first_read = false
     filtered
