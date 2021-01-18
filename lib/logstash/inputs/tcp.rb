@@ -5,10 +5,7 @@ require "java"
 require "logstash/inputs/base"
 require "logstash/util/socket_peer"
 require "logstash-input-tcp_jars"
-require "logstash/inputs/tcp/decoder_impl"
-require "logstash/inputs/tcp/compat_ssl_options"
 require 'logstash/plugin_mixins/ecs_compatibility_support'
-
 
 require "socket"
 require "openssl"
@@ -66,6 +63,8 @@ class LogStash::Inputs::Tcp < LogStash::Inputs::Base
   java_import org.logstash.tcp.InputLoop
 
   require_relative 'tcp/chooser'
+  require_relative "tcp/compat_ssl_options"
+  require_relative "tcp/decoder_impl"
 
   # ecs_compatibility option, provided by Logstash core or the support adapter.
   include(LogStash::PluginMixins::ECSCompatibilitySupport)

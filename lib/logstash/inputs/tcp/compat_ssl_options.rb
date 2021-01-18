@@ -12,7 +12,7 @@ require "logstash/util/loggable"
 #       .set_ssl_extra_chain_certs(@ssl_extra_chain_certs.to_java(:string))
 #       .set_ssl_certificate_authorities(@ssl_certificate_authorities.to_java(:string))
 #       .build.toSslContext()
-class SslOptions
+class LogStash::Inputs::Tcp::SslOptions
   include LogStash::Util::Loggable
 
   java_import 'io.netty.handler.ssl.ClientAuth'
